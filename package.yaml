@@ -15,6 +15,7 @@ dependencies:
   - transformers
   - unordered-containers
   - vector
+  - tasty
 
 library:
   source-dirs: src

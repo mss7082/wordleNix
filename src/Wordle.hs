@@ -9,9 +9,30 @@ type Location = Int -- Int in the range 0 - 4
 
 data LetterInformation
   = LetterNotInWord
-  | LetterNotInLocation (S.Set Location) -- set of places letter cannot appear.
+  | LetterNotInLocations (S.Set Location)
+  deriving (Show) -- set of places letter cannot appear.
 
 data State = MkState (M.Map Char LetterInformation)
+
+startingState :: State
+startingState = MkState mempty
+
+instance Semigroup State where
+  (MkState map1) <> (MkState map2) = MkState (M.unionWith combine map1 map2)
+    where
+      combine :: LetterInformation -> LetterInformation -> LetterInformation
+      combine LetterNotInWord LetterNotInWord = LetterNotInWord
+      combine LetterNotInWord (LetterNotInLocations {}) = error "duplicate letter (1)"
+      combine (LetterNotInLocations {}) LetterNotInWord = error "duplicate letter (2)"
+      combine (LetterNotInLocations locs1) (LetterNotInLocations locs2) = LetterNotInLocations (locs1 <> locs2)
+
+instance Monoid State where
+  mempty :: State
+  mempty = startingState
+
+instance Show State where
+  show :: State -> String
+  show (MkState mapping) = show mapping
 
 -- Set of all letters that are required, according to the state
 requiredLetters :: State -> S.Set Char
@@ -19,7 +40,7 @@ requiredLetters (MkState mapping) = M.foldlWithKey' go S.empty mapping
   where
     go :: S.Set Char -> Char -> LetterInformation -> S.Set Char
     go alreadyRequired _ LetterNotInWord = alreadyRequired
-    go alreadyRequired currentLetter (LetterNotInLocation {}) = currentLetter `S.insert` alreadyRequired
+    go alreadyRequired currentLetter (LetterNotInLocations {}) = currentLetter `S.insert` alreadyRequired
 
 validWord :: State -> WordleWord -> Bool
 validWord state@(MkState mapping) word = noLettersInBadLocations word && allRequiredLetters word
@@ -37,7 +58,7 @@ validWord state@(MkState mapping) word = noLettersInBadLocations word && allRequ
           Nothing -> True
           -- Letter not in word. Reject!
           Just LetterNotInWord -> False
-          Just (LetterNotInLocation excluded_locations) -> not (index `S.member` excluded_locations)
+          Just (LetterNotInLocations excluded_locations) -> not (index `S.member` excluded_locations)
 
     -- All the required letters are indeed in the word
     allRequiredLetters :: WordleWord -> Bool
@@ -56,9 +77,9 @@ peachState =
     ( M.fromList
         [ ('p', LetterNotInWord),
           ('e', LetterNotInWord),
-          ('a', LetterNotInLocation (S.fromList [2])),
+          ('a', LetterNotInLocations (S.fromList [2])),
           ('c', LetterNotInWord),
-          ('h', LetterNotInLocation (S.fromList [0, 1, 2, 3]))
+          ('h', LetterNotInLocations (S.fromList [0, 1, 2, 3]))
         ]
     )
 
@@ -68,9 +89,9 @@ unknownState =
   MkState
     ( M.fromList
         [ ('l', LetterNotInWord),
-          ('i', LetterNotInLocation (S.fromList [3])),
-          ('t', LetterNotInLocation (S.fromList [2])),
-          ('n', LetterNotInLocation (S.fromList [0, 2, 3, 4])),
-          ('u', LetterNotInLocation (S.fromList [1, 2, 3, 4]))
+          ('i', LetterNotInLocations (S.fromList [3])),
+          ('t', LetterNotInLocations (S.fromList [2])),
+          ('n', LetterNotInLocations (S.fromList [0, 2, 3, 4])),
+          ('u', LetterNotInLocations (S.fromList [1, 2, 3, 4]))
         ]
     )
